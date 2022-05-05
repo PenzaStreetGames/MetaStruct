@@ -1,4 +1,5 @@
 import ast
+from typing import List, Optional
 
 
 def dump_cpp_text(tree: ast.Module = None, filename: str = None) -> str:
@@ -21,10 +22,52 @@ def dump_function(module: ast.FunctionDef) -> str:
     ret_type = dump_expr(module.returns)
     name = module.name
     res += f"{ret_type} {name}() " + "{\n"
-    for elem in module.body:
-        res += "\t" + dump_expr(elem) + ";\n"
+    dumped_body = dump_body(module.body)
+    dumped_body = "\t" + dumped_body.replace("\n", "\n\t").rstrip("\t")
+    res += dumped_body
     res += "}"
     return res
+
+
+def dump_body(module: List[ast.stmt]) -> str:
+    res = ""
+    body_dumpers = {
+        ast.While: dump_while,
+    }
+    for elem in module:
+        expr_class = type(elem)
+        if expr_class in body_dumpers.keys():
+            res += body_dumpers[expr_class](elem)
+        else:
+            res += dump_expr(elem) + ";\n"
+    return res
+
+
+def dump_while(module: ast.While) -> str:
+    res = ""
+    condition = dump_expr(module.test)
+    res += f"while ({condition}) {{\n"
+    body = dump_body(module.body)
+    dumped_body = "\t" + body.replace("\n", "\n\t").rstrip("\t")
+    res += dumped_body
+    res += "}\n"
+    return res
+
+
+def dump_compare(module: ast.Compare) -> str:
+    comp_signs = {
+       ast.Eq: "==",
+       ast.NotEq: "!=",
+       ast.Lt: "<",
+       ast.LtE: "<=",
+       ast.Gt: ">",
+       ast.GtE: ">="
+    }
+    left = dump_expr(module.left)
+    op = module.ops[0]
+    op_sign = comp_signs[type(op)]
+    right = dump_expr(module.comparators[0])
+    return f"{left} {op_sign} {right}"
 
 
 def dump_expr(module: ast.Expression) -> str:
@@ -35,7 +78,10 @@ def dump_expr(module: ast.Expression) -> str:
         ast.Name: dump_name,
         ast.Constant: dump_constant,
         ast.BinOp: dump_bin_op,
-        ast.Return: dump_return
+        ast.Return: dump_return,
+
+        ast.Compare: dump_compare,
+        ast.While: dump_while
     }
     expr_class = type(module)
     res = expr_dumpers[expr_class](module)
