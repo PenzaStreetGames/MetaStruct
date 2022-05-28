@@ -57,10 +57,10 @@ def numba_exp(x: float) -> float:
 
 if __name__ == '__main__':
     arg = 250
-    print("Accuracy:")
-    print(f"{jit_exp(arg):.30f}")
-    print(f"{py_exp(arg):.30f}")
-    print(f"{numba_exp(arg):.30f}")
+    print("Value:")
+    print(f"exp({arg}) = {jit_exp(arg):.30f}")
+    print(f"exp({arg}) = {py_exp(arg):.30f}")
+    print(f"exp({arg}) = {numba_exp(arg):.30f}")
     print("Speed:")
     print("@jit\t\t", max(repeat(lambda: jit_exp(arg), number=10000)))
     print("@numba.jit\t", max(repeat(lambda: numba_exp(arg), number=10000)))
