@@ -25,7 +25,7 @@ def dump_module(module: ast.Module) -> str:
 
 def dump_function(module: ast.FunctionDef) -> str:
     res = ""
-    ret_type = dump_expr(module.returns)
+    ret_type = dump_type(module.returns)
     name = module.name
     args = dump_function_args(module.args)
     res += f"extern \"C\" {ret_type} {name}({args}) " + "{\n"
@@ -37,11 +37,9 @@ def dump_function(module: ast.FunctionDef) -> str:
 
 def dump_function_args(args: ast.arguments):
     args_list = []
-    print(type(args))
     for arg in args.args:
-        print(type(arg))
         arg_name = arg.arg
-        arg_type = arg.annotation.id
+        arg_type = dump_type(arg.annotation)
         args_list.append(f"{arg_type} {arg_name}")
     return ', '.join(args_list)
 
@@ -50,6 +48,7 @@ def dump_body(module: List[ast.stmt], indent=True) -> str:
     res = ""
     body_dumpers = {
         ast.While: dump_while,
+        ast.If: dump_if
     }
     for elem in module:
         expr_class = type(elem)
@@ -72,6 +71,43 @@ def dump_while(module: ast.While) -> str:
     return res
 
 
+def dump_if(module: ast.If) -> str:
+    res = ""
+    condition = dump_expr(module.test)
+    res += f"if {condition} {{\n"
+    body = dump_body(module.body, indent=True)
+    res += body + "}\n"
+    orelse = module.orelse
+    if orelse:
+        res += "else "
+        first = orelse[0]
+        if isinstance(first, ast.If):
+            res += dump_if(first)
+        else:
+            else_body = dump_body(orelse)
+            res += f"{{\n{else_body}}}\n"
+
+    return res
+
+
+def dump_expr(module: ast.Expression) -> str:
+    res = ""
+    expr_dumpers = {
+        ast.AnnAssign: dump_ann_assign,
+        ast.Assign: dump_assign,
+        ast.Name: dump_name,
+        ast.Constant: dump_constant,
+        ast.BinOp: dump_bin_op,
+        ast.BoolOp: dump_bool_op,
+        ast.Return: dump_return,
+        ast.AugAssign: dump_aug_assign,
+        ast.Compare: dump_compare
+    }
+    expr_class = type(module)
+    res = expr_dumpers[expr_class](module)
+    return res
+
+
 def dump_compare(module: ast.Compare) -> str:
     comp_signs = {
        ast.Eq: "==",
@@ -85,26 +121,7 @@ def dump_compare(module: ast.Compare) -> str:
     op = module.ops[0]
     op_sign = comp_signs[type(op)]
     right = dump_expr(module.comparators[0])
-    return f"{left} {op_sign} {right}"
-
-
-def dump_expr(module: ast.Expression) -> str:
-    res = ""
-    expr_dumpers = {
-        ast.AnnAssign: dump_ann_assign,
-        ast.Assign: dump_assign,
-        ast.Name: dump_name,
-        ast.Constant: dump_constant,
-        ast.BinOp: dump_bin_op,
-        ast.BoolOp: dump_bool_op,
-        ast.Return: dump_return,
-
-        ast.Compare: dump_compare,
-        ast.While: dump_while
-    }
-    expr_class = type(module)
-    res = expr_dumpers[expr_class](module)
-    return res
+    return f"({left} {op_sign} {right})"
 
 
 def dump_name(module: ast.Name) -> str:
@@ -120,7 +137,7 @@ def dump_constant(module: ast.Constant) -> str:
 def dump_ann_assign(module: ast.AnnAssign) -> str:
     target = dump_expr(module.target)
     value = dump_expr(module.value)
-    target_type = dump_expr(module.annotation)
+    target_type = dump_type(module.annotation)
     return f"{target_type} {target} = {value}"
 
 
@@ -151,6 +168,29 @@ def dump_bin_op(module: ast.BinOp) -> str:
     return f"({left} {op_sign} {right})"
 
 
+def dump_aug_assign(module: ast.AugAssign):
+    res = ""
+    target = dump_expr(module.target)
+    value = dump_expr(module.value)
+    op = module.op
+    aug_op_signs = {
+        ast.Add: "+",
+        ast.Sub: "-",
+        ast.Div: "/",
+        ast.FloorDiv: "/",
+        ast.Mult: "*",
+        ast.Mod: "%",
+        ast.LShift: "<<",
+        ast.BitAnd: "&",
+        ast.RShift: ">>",
+        ast.BitOr: "|",
+        ast.And: "&&",
+        ast.Or: "||"
+    }
+    op_sign = f"{aug_op_signs[type(op)]}="
+    return f"{target} {op_sign} {value}"
+
+
 def dump_bool_op(module: ast.BoolOp) -> str:
     res = ""
     left = dump_expr(module.values[0])
@@ -169,3 +209,12 @@ def dump_return(module: ast.Return) -> str:
     value = dump_expr(module.value)
     return f"return {value}"
 
+
+def dump_type(module: ast.Name):
+    res = ""
+    types_dict = {
+        "int": "int",
+        "float": "double"
+    }
+    res = types_dict[module.id]
+    return res

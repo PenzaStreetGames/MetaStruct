@@ -3,27 +3,49 @@ import code_to_tree.parser as parser
 import tree_to_code.dump as dump
 from ctypes import *
 from annotation import jit
+from struct import unpack
 
 
 @jit
-def func(x: int) -> int:
-    while x > 1 and x < 1000:
-        x = x * x
-    # i: int = 1
-    # x: int = 42
-    # while i < 500:
-    # x = (x + 80) // 2
-    # x = (x - 34) * 7
-    # x = x % 103
-    # x = (x << 2) & 843
-    # x = (x | 55) >> 3
-    # x = x * x - x
-    # x = x % 68
-    # i = i + 1
-    y: int = x
-    return y
+def exp(x: float) -> float:
+    res: float = 0
+    threshold: float = 1e-20
+    delta: float = 1
+    elements: int = 0
+
+    while delta > threshold:
+        elements = elements + 1
+        delta = delta * x / elements
+
+    while elements >= 0:
+        res += delta
+        delta = delta * elements / x
+        elements -= 1
+
+    return res
+
+
+def p_exp(x: float) -> float:
+    res: float = 0
+    threshold: float = 1e-20
+    delta: float = 1
+    elements: int = 0
+
+    while delta > threshold:
+        elements = elements + 1
+        delta = delta * x / elements
+
+    while elements >= 0:
+        res += delta
+        delta = delta * elements / x
+        elements -= 1
+
+    return res
 
 
 if __name__ == '__main__':
-    for i in range(100):
-        print(func(i))
+    for i in range(1, 11):
+        arg = i / 10
+        value = exp(c_double(arg))
+        print(arg, exp(c_double(arg)))
+        print(arg, p_exp(arg))

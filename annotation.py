@@ -32,7 +32,6 @@ def jit(func: Callable) -> Callable:
 
     def jit_func(*args, **kwargs):
         name = func.__name__
-        print(args, kwargs)
         return exec_module[name](*args, **kwargs)
 
     return jit_func
