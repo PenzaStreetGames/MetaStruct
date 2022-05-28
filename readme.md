@@ -46,6 +46,32 @@ def jit_exp(x: float) -> float:
 В примере выше выполняется вычисление производной по формуле:
 $e^x = \displaystyle\sum_{n=0}^\infty \frac{x^n}{n!}$
 
+Следует отметить, что в алгоритме суммирование происходит от самого маленького члена к самому большому
+(справа налево), что позволяет не терять точность при сложении больших чисел с маленькими.
+
+Показанная выше функция будет преобразована к такому эквиваленту на языке C++:
+
+```cpp
+extern "C" double jit_exp(double x) {
+    double res = 0;
+    double threshold = 1e-30;
+    double delta = 1;
+    int elements = 0;
+    while ((delta > threshold)) {
+        elements = (elements + 1);
+        delta = ((delta * x) / elements);
+    }
+    while ((elements >= 0)) {
+        res += delta;
+        delta = ((delta * elements) / x);
+        elements -= 1;
+    }
+    return res;
+}
+```
+
+Избыточность некоторых скобок объясняется автогенерацией кода.
+
 ## Ограничения по синтаксису
 
 * Все переменные 
