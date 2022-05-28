@@ -3,13 +3,14 @@ import code_to_tree.parser as parser
 import tree_to_code.dump as dump
 from ctypes import *
 from annotation import jit
+from timeit import timeit, repeat
 from struct import unpack
 
 
 @jit
 def exp(x: float) -> float:
     res: float = 0
-    threshold: float = 1e-20
+    threshold: float = 1e-30
     delta: float = 1
     elements: int = 0
 
@@ -27,7 +28,7 @@ def exp(x: float) -> float:
 
 def p_exp(x: float) -> float:
     res: float = 0
-    threshold: float = 1e-20
+    threshold: float = 1e-30
     delta: float = 1
     elements: int = 0
 
@@ -44,8 +45,11 @@ def p_exp(x: float) -> float:
 
 
 if __name__ == '__main__':
-    for i in range(1, 11):
-        arg = i / 10
-        value = exp(c_double(arg))
-        print(arg, exp(c_double(arg)))
-        print(arg, p_exp(arg))
+    arg = 200
+    print("Accuracy:")
+    print(f"{exp(arg):.30f}")
+    print(f"{p_exp(arg):.30f}")
+    print("Speed:")
+    print(max(repeat(lambda: exp(arg), number=10000)))
+    print(max(repeat(lambda: p_exp(arg), number=10000)))
+

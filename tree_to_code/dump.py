@@ -1,47 +1,51 @@
 import ast
-from typing import List, Optional
+import ctypes
+from typing import List, Optional, Tuple
 
 
-def dump_cpp_text(tree: ast.Module = None, filename: str = None) -> str:
-    text = dump_module(tree)
+def dump_cpp_text(tree: ast.Module = None, filename: str = None) -> dict:
+    text, signatures = dump_module(tree)
     with open(filename, "w", encoding="utf-8") as outfile:
         outfile.write(text)
-    return text
+    return signatures
 
 
-def dump_module(module: ast.Module) -> str:
+def dump_module(module: ast.Module) -> Tuple[str, dict]:
     res = ""
+    signatures = {}
     for elem in module.body:
         if isinstance(elem, ast.FunctionDef):
-            res += dump_function(elem) + "\n"
-#     if "int main() {" not in res:
-#         res += """
-# int main() {
-#     return 0;
-# }
-#     """
-    return res
+            func_text, signature = dump_function(elem)
+            res += func_text + "\n"
+            signatures[elem.name] = signature
+    return res, signatures
 
 
-def dump_function(module: ast.FunctionDef) -> str:
+def dump_function(module: ast.FunctionDef) -> Tuple[str, dict]:
     res = ""
     ret_type = dump_type(module.returns)
     name = module.name
-    args = dump_function_args(module.args)
+    args, args_signature = dump_function_args(module.args)
     res += f"extern \"C\" {ret_type} {name}({args}) " + "{\n"
     dumped_body = dump_body(module.body, indent=True)
     res += dumped_body
     res += "}"
-    return res
+    signature = {
+        "argtypes": args_signature,
+        "restype": ctype_convert(ret_type)
+    }
+    return res, signature
 
 
-def dump_function_args(args: ast.arguments):
+def dump_function_args(args: ast.arguments) -> Tuple[str, list]:
     args_list = []
+    args_signature = []
     for arg in args.args:
         arg_name = arg.arg
         arg_type = dump_type(arg.annotation)
         args_list.append(f"{arg_type} {arg_name}")
-    return ', '.join(args_list)
+        args_signature.append(ctype_convert(arg_type))
+    return ', '.join(args_list), args_signature
 
 
 def dump_body(module: List[ast.stmt], indent=True) -> str:
@@ -218,3 +222,11 @@ def dump_type(module: ast.Name):
     }
     res = types_dict[module.id]
     return res
+
+
+def ctype_convert(type_str: str):
+    ctypes_dict = {
+        "int": ctypes.c_int,
+        "double": ctypes.c_double
+    }
+    return ctypes_dict[type_str]

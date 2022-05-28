@@ -1,6 +1,6 @@
 extern "C" double exp(double x) {
     double res = 0;
-    double threshold = 1e-20;
+    double threshold = 1e-30;
     double delta = 1;
     int elements = 0;
     while ((delta > threshold)) {
