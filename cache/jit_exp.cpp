@@ -1,4 +1,4 @@
-extern "C" double exp(double x) {
+extern "C" double jit_exp(double x) {
     double res = 0;
     double threshold = 1e-30;
     double delta = 1;
