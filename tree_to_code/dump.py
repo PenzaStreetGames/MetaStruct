@@ -14,6 +14,12 @@ def dump_module(module: ast.Module) -> str:
     for elem in module.body:
         if isinstance(elem, ast.FunctionDef):
             res += dump_function(elem) + "\n"
+#     if "int main() {" not in res:
+#         res += """
+# int main() {
+#     return 0;
+# }
+#     """
     return res
 
 
@@ -21,15 +27,26 @@ def dump_function(module: ast.FunctionDef) -> str:
     res = ""
     ret_type = dump_expr(module.returns)
     name = module.name
-    res += f"{ret_type} {name}() " + "{\n"
-    dumped_body = dump_body(module.body)
-    dumped_body = "\t" + dumped_body.replace("\n", "\n\t").rstrip("\t")
+    args = dump_function_args(module.args)
+    res += f"extern \"C\" {ret_type} {name}({args}) " + "{\n"
+    dumped_body = dump_body(module.body, indent=True)
     res += dumped_body
     res += "}"
     return res
 
 
-def dump_body(module: List[ast.stmt]) -> str:
+def dump_function_args(args: ast.arguments):
+    args_list = []
+    print(type(args))
+    for arg in args.args:
+        print(type(arg))
+        arg_name = arg.arg
+        arg_type = arg.annotation.id
+        args_list.append(f"{arg_type} {arg_name}")
+    return ', '.join(args_list)
+
+
+def dump_body(module: List[ast.stmt], indent=True) -> str:
     res = ""
     body_dumpers = {
         ast.While: dump_while,
@@ -40,6 +57,8 @@ def dump_body(module: List[ast.stmt]) -> str:
             res += body_dumpers[expr_class](elem)
         else:
             res += dump_expr(elem) + ";\n"
+    if indent:
+        res = "    " + res.replace("\n", "\n    ").rstrip("    ")
     return res
 
 
@@ -47,9 +66,8 @@ def dump_while(module: ast.While) -> str:
     res = ""
     condition = dump_expr(module.test)
     res += f"while ({condition}) {{\n"
-    body = dump_body(module.body)
-    dumped_body = "\t" + body.replace("\n", "\n\t").rstrip("\t")
-    res += dumped_body
+    body = dump_body(module.body, indent=True)
+    res += body
     res += "}\n"
     return res
 
@@ -78,6 +96,7 @@ def dump_expr(module: ast.Expression) -> str:
         ast.Name: dump_name,
         ast.Constant: dump_constant,
         ast.BinOp: dump_bin_op,
+        ast.BoolOp: dump_bool_op,
         ast.Return: dump_return,
 
         ast.Compare: dump_compare,
@@ -129,6 +148,19 @@ def dump_bin_op(module: ast.BinOp) -> str:
         ast.BitOr: "|",
     }
     op_sign = bin_op_signs[type(op)]
+    return f"({left} {op_sign} {right})"
+
+
+def dump_bool_op(module: ast.BoolOp) -> str:
+    res = ""
+    left = dump_expr(module.values[0])
+    right = dump_expr(module.values[1])
+    op = module.op
+    bool_op_signs = {
+        ast.And: "&&",
+        ast.Or: "||"
+    }
+    op_sign = bool_op_signs[type(op)]
     return f"({left} {op_sign} {right})"
 
 

@@ -2,21 +2,28 @@ import subprocess
 import code_to_tree.parser as parser
 import tree_to_code.dump as dump
 from ctypes import *
+from annotation import jit
 
 
-def main(module_py: str, module_cpp: str):
-    python_tree = parser.get_python_tree(filename=module_py)
-    print(python_tree)
-    print(dump.dump_module(python_tree))
-    dump.dump_cpp_text(tree=python_tree, filename=module_cpp)
-    object_module = module_cpp.replace(".cpp", ".o")
-    subprocess.run(["g++", "-c", module_cpp, "-DLIBRARY_EXPORTS", "-o", object_module])
-    dll_module = object_module.replace(".o", ".dll")
-    subprocess.run(["g++", "-shared", "-o", dll_module, object_module])
-    mydll = cdll.LoadLibrary(dll_module)
-    result = mydll.main()
-    print(result)
+@jit
+def func(x: int) -> int:
+    while x > 1 and x < 1000:
+        x = x * x
+    # i: int = 1
+    # x: int = 42
+    # while i < 500:
+    # x = (x + 80) // 2
+    # x = (x - 34) * 7
+    # x = x % 103
+    # x = (x << 2) & 843
+    # x = (x | 55) >> 3
+    # x = x * x - x
+    # x = x % 68
+    # i = i + 1
+    y: int = x
+    return y
 
 
 if __name__ == '__main__':
-    main("test/python_programs/program_1.py", "test/cpp_programs/program_1.cpp")
+    for i in range(100):
+        print(func(i))
