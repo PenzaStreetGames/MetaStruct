@@ -44,7 +44,7 @@ def jit_exp(x: float) -> float:
 ```
 
 В примере выше выполняется вычисление производной по формуле:
-$e = \sum_{n=0}^\infty \frac{x^n}{n!}$
+$e^x = \displaystyle\sum_{n=0}^\infty \frac{x^n}{n!}$
 
 ## Ограничения по синтаксису
 
