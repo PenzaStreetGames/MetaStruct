@@ -97,7 +97,7 @@ def numba_exp(x: float) -> float:
     ...
 ```
 
-Выполним замер скорости вычисления $e^250$
+Выполним замер скорости вычисления $e^{250}$
 
 ```python
 from timeit import repeat
