@@ -3,11 +3,10 @@ import ctypes
 import inspect
 import os
 import subprocess
-import sys
 
 from tree_to_code import dump
-from typing import Callable, Tuple, Any
-from ctypes import cdll, LibraryLoader
+from typing import Callable, Tuple
+from ctypes import LibraryLoader
 
 
 def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
@@ -16,7 +15,7 @@ def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
     print(ast.dump(ast_object, indent=4))
     if not os.path.exists("cache"):
         os.makedirs("cache")
-    cpp_filename = f"cache/{func.__name__}.cpp"
+    cpp_filename = f"{os.getcwd()}\\cache\\{func.__name__}.cpp"
     signatures = dump.dump_cpp_text(tree=ast_object, filename=cpp_filename)
     o_filename = cpp_filename.replace(".cpp", ".o")
     subprocess.run(["g++", "-c", cpp_filename, "-o", o_filename])

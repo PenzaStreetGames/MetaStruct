@@ -95,35 +95,51 @@ def dump_if(module: ast.If) -> str:
 
 
 def dump_expr(module: ast.Expression) -> str:
-    res = ""
-    expr_dumpers = {
-        ast.AnnAssign: dump_ann_assign,
-        ast.Assign: dump_assign,
-        ast.Name: dump_name,
-        ast.Constant: dump_constant,
-        ast.BinOp: dump_bin_op,
-        ast.BoolOp: dump_bool_op,
-        ast.Return: dump_return,
-        ast.AugAssign: dump_aug_assign,
-        ast.Compare: dump_compare
-    }
-    expr_class = type(module)
-    res = expr_dumpers[expr_class](module)
+    match module_type := type(module):
+        case ast.AnnAssign:
+            dumper = dump_ann_assign
+        case ast.Assign:
+            dumper = dump_assign
+        case ast.Name:
+            dumper = dump_name
+        case ast.Constant:
+            dumper = dump_constant
+        case ast.BinOp:
+            dumper = dump_bin_op
+        case ast.UnaryOp:
+            dumper = dump_unary_op
+        case ast.BoolOp:
+            dumper = dump_bool_op
+        case ast.Return:
+            dumper = dump_return
+        case ast.AugAssign:
+            dumper = dump_aug_assign
+        case ast.Compare:
+            dumper = dump_compare
+        case _:
+            raise Exception(f"unsupported expr type {module_type}")
+    res = dumper(module)
     return res
 
 
 def dump_compare(module: ast.Compare) -> str:
-    comp_signs = {
-       ast.Eq: "==",
-       ast.NotEq: "!=",
-       ast.Lt: "<",
-       ast.LtE: "<=",
-       ast.Gt: ">",
-       ast.GtE: ">="
-    }
-    left = dump_expr(module.left)
     op = module.ops[0]
-    op_sign = comp_signs[type(op)]
+    match op_type := type(op):
+        case ast.Eq:
+            op_sign = "=="
+        case ast.NotEq:
+            op_sign = "!="
+        case ast.Lt:
+            op_sign = "<"
+        case ast.LtE:
+            op_sign = "<="
+        case ast.Gt:
+            op_sign = ">"
+        case ast.GtE:
+            op_sign = ">="
+        case _:
+            raise Exception(f"unsupported compare type {op_type}")
+    left = dump_expr(module.left)
     right = dump_expr(module.comparators[0])
     return f"({left} {op_sign} {right})"
 
@@ -135,7 +151,13 @@ def dump_name(module: ast.Name) -> str:
 
 
 def dump_constant(module: ast.Constant) -> str:
-    return f"{module.value}"
+    match module.value:
+        case True:
+            return "true"
+        case False:
+            return "false"
+        case _:
+            return f"{module.value}"
 
 
 def dump_ann_assign(module: ast.AnnAssign) -> str:
@@ -152,59 +174,97 @@ def dump_assign(module: ast.Assign) -> str:
 
 
 def dump_bin_op(module: ast.BinOp) -> str:
-    res = ""
+    op = module.op
+    match op_type := type(op):
+        case ast.Add:
+            op_sign = "+"
+        case ast.Sub:
+            op_sign = "-"
+        case ast.Div:
+            op_sign = "/"
+        case ast.FloorDiv:
+            op_sign = "/"
+        case ast.Mult:
+            op_sign = "*"
+        case ast.Mod:
+            op_sign = "%"
+        case ast.LShift:
+            op_sign = "<<"
+        case ast.RShift:
+            op_sign = ">>"
+        case ast.BitAnd:
+            op_sign = "&"
+        case ast.BitOr:
+            op_sign = "|"
+        case ast.BitXor:
+            op_sign = "^"
+        case _:
+            raise Exception(f"unsupported bin op type {op_type}")
     left = dump_expr(module.left)
     right = dump_expr(module.right)
-    op = module.op
-    bin_op_signs = {
-        ast.Add: "+",
-        ast.Sub: "-",
-        ast.Div: "/",
-        ast.FloorDiv: "/",
-        ast.Mult: "*",
-        ast.Mod: "%",
-        ast.LShift: "<<",
-        ast.BitAnd: "&",
-        ast.RShift: ">>",
-        ast.BitOr: "|",
-    }
-    op_sign = bin_op_signs[type(op)]
     return f"({left} {op_sign} {right})"
 
 
+def dump_unary_op(module: ast.UnaryOp) -> str:
+    operand = dump_expr(module.operand)
+    op = module.op
+    match op_type := type(op):
+        case ast.UAdd:
+            op_sign = "+"
+        case ast.USub:
+            op_sign = "-"
+        case ast.Not:
+            op_sign = "!"
+        case ast.Invert:
+            op_sign = "~"
+        case _:
+            raise Exception(f"unsupported unary op type {op_type}")
+    return f"({op_sign}{operand})"
+
+
 def dump_aug_assign(module: ast.AugAssign):
-    res = ""
     target = dump_expr(module.target)
     value = dump_expr(module.value)
     op = module.op
-    aug_op_signs = {
-        ast.Add: "+",
-        ast.Sub: "-",
-        ast.Div: "/",
-        ast.FloorDiv: "/",
-        ast.Mult: "*",
-        ast.Mod: "%",
-        ast.LShift: "<<",
-        ast.BitAnd: "&",
-        ast.RShift: ">>",
-        ast.BitOr: "|",
-        ast.And: "&&",
-        ast.Or: "||"
-    }
-    op_sign = f"{aug_op_signs[type(op)]}="
-    return f"{target} {op_sign} {value}"
+    match op_type := type(op):
+        case ast.Add:
+            aug_op_sign = "+="
+        case ast.Sub:
+            aug_op_sign = "-="
+        case ast.Div:
+            aug_op_sign = "/="
+        case ast.FloorDiv:
+            aug_op_sign = "/="
+        case ast.Mult:
+            aug_op_sign = "*="
+        case ast.Mod:
+            aug_op_sign = "%="
+        case ast.LShift:
+            aug_op_sign = "<<="
+        case ast.RShift:
+            aug_op_sign = ">>="
+        case ast.BitAnd:
+            aug_op_sign = "&="
+        case ast.BitOr:
+            aug_op_sign = "|="
+        case ast.BitXor:
+            aug_op_sign = "^="
+        case _:
+            raise Exception(f"unsupported aug assign type {op_type}")
+    return f"{target} {aug_op_sign} {value}"
 
 
 def dump_bool_op(module: ast.BoolOp) -> str:
-    res = ""
     left = dump_expr(module.values[0])
     right = dump_expr(module.values[1])
     op = module.op
-    bool_op_signs = {
-        ast.And: "&&",
-        ast.Or: "||"
-    }
-    op_sign = bool_op_signs[type(op)]
+    match op_type := type(op):
+        case ast.And:
+            op_sign = "&&"
+        case ast.Or:
+            op_sign = "||"
+        case _:
+            raise Exception(f"unsupported bool op type {op_type}")
     return f"({left} {op_sign} {right})"
 
 
@@ -214,19 +274,26 @@ def dump_return(module: ast.Return) -> str:
     return f"return {value}"
 
 
-def dump_type(module: ast.Name):
+def dump_type(module: ast.Name) -> str:
     res = ""
-    types_dict = {
-        "int": "int",
-        "float": "double"
-    }
-    res = types_dict[module.id]
-    return res
+    match module_type := module.id:
+        case "int":
+            return "int"
+        case "float":
+            return "double"
+        case "bool":
+            return "bool"
+        case _:
+            raise Exception(f"unsupported type {module_type}")
 
 
 def ctype_convert(type_str: str):
-    ctypes_dict = {
-        "int": ctypes.c_int,
-        "double": ctypes.c_double
-    }
-    return ctypes_dict[type_str]
+    match type_str:
+        case "int":
+            return ctypes.c_int
+        case "double":
+            return ctypes.c_double
+        case "bool":
+            return ctypes.c_bool
+        case _:
+            raise Exception(f"unsupported type str {type_str}")

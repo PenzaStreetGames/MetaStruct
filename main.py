@@ -1,11 +1,6 @@
-import subprocess
-import code_to_tree.parser as parser
-import tree_to_code.dump as dump
-from ctypes import *
 from annotation import jit
 from timeit import timeit, repeat
 import numba
-from struct import unpack
 
 
 @jit
