@@ -15,13 +15,14 @@ def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
     print(ast.dump(ast_object, indent=4))
     if not os.path.exists("cache"):
         os.makedirs("cache")
-    cpp_filename = f"{os.getcwd()}\\cache\\{func.__name__}.cpp"
+    cpp_filename = f"cache/{func.__name__}.cpp"
     signatures = dump.dump_cpp_text(tree=ast_object, filename=cpp_filename)
     o_filename = cpp_filename.replace(".cpp", ".o")
-    subprocess.run(["g++", "-c", cpp_filename, "-o", o_filename])
+    subprocess.run(["g++", "-O2", "-c", cpp_filename, "-o", o_filename])
+    # subprocess.run(["g++", "-c", cpp_filename, "-o", o_filename])
     dll_filename = o_filename.replace(".o", ".dll")
     subprocess.run(["g++", "-shared", "-o", dll_filename, o_filename])
-    os.remove(o_filename)
+    # os.remove(o_filename)
     dll = LibraryLoader(ctypes.CDLL).LoadLibrary(dll_filename)
     return dll, signatures
 

@@ -50,7 +50,32 @@ def numba_exp(x: float) -> float:
     return res
 
 
+@jit
+def jit_f(n: int) -> int:
+    if n < 2:
+        return 1
+    return jit_f(n - 1) + jit_f(n - 2)
+
+
+@numba.jit
+def numba_f(n: int) -> int:
+    if n < 2:
+        return 1
+    return numba_f(n - 1) + numba_f(n - 2)
+
+
+def f(n: int) -> int:
+    if n < 2:
+        return 1
+    return f(n - 1) + f(n - 2)
+
+
 if __name__ == '__main__':
+    # arg = 35
+    # print("@jit\t\t", max(repeat(lambda: f(arg), number=1)))
+    # print("@numba.jit\t", max(repeat(lambda: numba_f(arg), number=1)))
+    # print("pure python\t", max(repeat(lambda: f(arg), number=1)))
+
     arg = 250
     print("Value:")
     print(f"exp({arg}) = {jit_exp(arg):.30f}")

@@ -94,7 +94,7 @@ def dump_if(module: ast.If) -> str:
     return res
 
 
-def dump_expr(module: ast.Expression) -> str:
+def dump_expr(module: ast.expr) -> str:
     match module_type := type(module):
         case ast.AnnAssign:
             dumper = dump_ann_assign
@@ -116,6 +116,8 @@ def dump_expr(module: ast.Expression) -> str:
             dumper = dump_aug_assign
         case ast.Compare:
             dumper = dump_compare
+        case ast.Call:
+            dumper = dump_call
         case _:
             raise Exception(f"unsupported expr type {module_type}")
     res = dumper(module)
@@ -168,6 +170,9 @@ def dump_ann_assign(module: ast.AnnAssign) -> str:
 
 
 def dump_assign(module: ast.Assign) -> str:
+    match module:
+        case ast.Assign(targets=[ast.Name(id=x)], value=ast.Name(id=y)) if x == y:
+            return ""
     target = dump_expr(module.targets[0])
     value = dump_expr(module.value)
     return f"{target} = {value}"
@@ -175,28 +180,33 @@ def dump_assign(module: ast.Assign) -> str:
 
 def dump_bin_op(module: ast.BinOp) -> str:
     op = module.op
-    match op_type := type(op):
-        case ast.Add:
+    match module:
+        case ast.BinOp(op=ast.Add()):
+            match module:
+                case ast.BinOp(left=x, right=ast.Constant(value=0)):
+                    return dump_expr(x)
+                case ast.BinOp(left=ast.Constant(value=0), right=x):
+                    return dump_expr(x)
             op_sign = "+"
-        case ast.Sub:
+        case ast.BinOp(op=ast.Sub()):
             op_sign = "-"
-        case ast.Div:
+        case ast.BinOp(op=ast.Div()):
             op_sign = "/"
-        case ast.FloorDiv:
+        case ast.BinOp(op=ast.FloorDiv()):
             op_sign = "/"
-        case ast.Mult:
+        case ast.BinOp(op=ast.Mult()):
             op_sign = "*"
-        case ast.Mod:
+        case ast.BinOp(op=ast.Mod()):
             op_sign = "%"
-        case ast.LShift:
+        case ast.BinOp(op=ast.LShift()):
             op_sign = "<<"
-        case ast.RShift:
+        case ast.BinOp(op=ast.RShift()):
             op_sign = ">>"
-        case ast.BitAnd:
+        case ast.BinOp(op=ast.BitAnd()):
             op_sign = "&"
-        case ast.BitOr:
+        case ast.BinOp(op=ast.BitOr()):
             op_sign = "|"
-        case ast.BitXor:
+        case ast.BinOp(op=ast.BitXor()):
             op_sign = "^"
         case _:
             raise Exception(f"unsupported bin op type {op_type}")
@@ -269,9 +279,14 @@ def dump_bool_op(module: ast.BoolOp) -> str:
 
 
 def dump_return(module: ast.Return) -> str:
-    res = ""
     value = dump_expr(module.value)
     return f"return {value}"
+
+
+def dump_call(module: ast.Call) -> str:
+    func = dump_expr(module.func)
+    args = ", ".join([dump_expr(arg) for arg in module.args])
+    return f"{func}({args})"
 
 
 def dump_type(module: ast.Name) -> str:

@@ -14,5 +14,4 @@ def get_python_tree(text: str = None, filename: str = None):
         else:
             raise Exception("Nothing to parse")
     parsed = ast.parse(text)
-    print(ast.dump(parsed, indent=4))
     return parsed
