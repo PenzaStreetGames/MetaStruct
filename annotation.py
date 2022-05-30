@@ -22,7 +22,7 @@ def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
     # subprocess.run(["g++", "-c", cpp_filename, "-o", o_filename])
     dll_filename = o_filename.replace(".o", ".dll")
     subprocess.run(["g++", "-shared", "-o", dll_filename, o_filename])
-    # os.remove(o_filename)
+    os.remove(o_filename)
     dll = LibraryLoader(ctypes.CDLL).LoadLibrary(dll_filename)
     return dll, signatures
 
