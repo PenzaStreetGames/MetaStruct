@@ -18,7 +18,7 @@ def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
     cpp_filename = f"{os.getcwd()}\\cache\\{func.__name__}.cpp"
     signatures = dump.dump_cpp_text(tree=ast_object, filename=cpp_filename)
     o_filename = cpp_filename.replace(".cpp", ".o")
-    subprocess.run(["g++", "-c", cpp_filename, "-o", o_filename])
+    subprocess.run(["g++", "-O2", "-c", cpp_filename, "-o", o_filename])
     dll_filename = o_filename.replace(".o", ".dll")
     subprocess.run(["g++", "-shared", "-o", dll_filename, o_filename])
     os.remove(o_filename)
