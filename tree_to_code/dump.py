@@ -1,10 +1,12 @@
 import ast
 import ctypes
 from typing import List, Optional, Tuple
+from tree_to_code.dump_visitor import DumpVisitor
 
 
 def dump_cpp_text(tree: ast.Module = None, filename: str = None) -> dict:
-    text, signatures = dump_module(tree)
+    # text, signatures = dump_module(tree)
+    text, signatures = DumpVisitor().visit(tree)
     with open(filename, "w", encoding="utf-8") as outfile:
         outfile.write(text)
     return signatures
@@ -170,9 +172,6 @@ def dump_ann_assign(module: ast.AnnAssign) -> str:
 
 
 def dump_assign(module: ast.Assign) -> str:
-    match module:
-        case ast.Assign(targets=[ast.Name(id=x)], value=ast.Name(id=y)) if x == y:
-            return ""
     target = dump_expr(module.targets[0])
     value = dump_expr(module.value)
     return f"{target} = {value}"
