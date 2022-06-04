@@ -182,11 +182,6 @@ def dump_bin_op(module: ast.BinOp) -> str:
     op = module.op
     match module:
         case ast.BinOp(op=ast.Add()):
-            match module:
-                case ast.BinOp(left=x, right=ast.Constant(value=0)):
-                    return dump_expr(x)
-                case ast.BinOp(left=ast.Constant(value=0), right=x):
-                    return dump_expr(x)
             op_sign = "+"
         case ast.BinOp(op=ast.Sub()):
             op_sign = "-"
