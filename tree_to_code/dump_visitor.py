@@ -82,7 +82,7 @@ class DumpVisitor(ast.NodeVisitor):
 
     def visit_If(self, node: If) -> str:
         condition = self.visit(node.test)
-        res = f"if {condition} {{\n"
+        res = f"if ({condition}) {{\n"
         res += self.dump_body(node.body) + "}\n"
         match orelse := node.orelse:
             case If():
@@ -96,10 +96,16 @@ class DumpVisitor(ast.NodeVisitor):
         return f"{self.visit(node.annotation)} {self.visit(node.target)} = {self.visit(node.value)}"
 
     def visit_Assign(self, node: Assign) -> str:
-        return f"({self.visit(node.targets[0])} = {self.visit(node.value)})"
+        return f"{self.visit(node.targets[0])} = {self.visit(node.value)}"
 
     def visit_Constant(self, node: Constant) -> str:
-        return str(node.value)
+        match node:
+            case Constant(value=True):
+                return "true"
+            case Constant(value=False):
+                return "false"
+            case _:
+                return str(node.value)
 
     def visit_UnaryOp(self, node: UnaryOp) -> str:
         return f"{self.visit(node.op)}{self.visit(node.operand)}"
@@ -109,8 +115,6 @@ class DumpVisitor(ast.NodeVisitor):
 
     def visit_Name(self, node: Name) -> str:
         match node.id:
-            case "True" | "False":
-                return node.id.lower()
             case "int" | "bool" | "float":
                 return dump_type(node.id)
             case _:
@@ -123,7 +127,7 @@ class DumpVisitor(ast.NodeVisitor):
         return f"return {self.visit(node.value)}"
 
     def visit_AugAssign(self, node: AugAssign) -> str:
-        return f"({self.visit(node.target)} {self.visit(node.op)}= {self.visit(node.value)})"
+        return f"{self.visit(node.target)} {self.visit(node.op)}= {self.visit(node.value)}"
 
     def visit_Compare(self, node: Compare) -> str:
         return f"({self.visit(node.left)} {self.visit(node.ops[0])} {self.visit(node.comparators[0])})"
@@ -131,6 +135,12 @@ class DumpVisitor(ast.NodeVisitor):
     def visit_Call(self, node: Call) -> str:
         args = ", ".join(map(self.visit, node.args))
         return f"{self.visit(node.func)}({args})"
+
+    def visit_Break(self, node: Break) -> str:
+        return "break"
+
+    def visit_Continue(self, node: Continue) -> str:
+        return "continue"
 
     def visit_Add(self, node: Add) -> str:
         return "+"
