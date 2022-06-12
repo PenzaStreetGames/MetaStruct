@@ -89,6 +89,11 @@ def py_n_primary(n: int) -> int:
 jit_n_primary, numba_n_primary = get_jit_numba_realisations(py_n_primary)
 
 
+@jit
+def err_func(x: int, y: int) -> int:
+    return x @ y
+
+
 if __name__ == '__main__':
     # arg = 35
     # print("@jit\t\t", max(repeat(lambda: f(arg), number=1)))
