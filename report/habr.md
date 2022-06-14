@@ -525,6 +525,9 @@ class DumpVisitor(NodeVisitor):
     ...
 ```
 
+Код остальных методов посетителя можно изучить в 
+[репозитории](https://github.com/PenzaStreetGames/MetaStruct/blob/main/tree_to_code/dump_visitor.py).
+
 Преимущества подхода:
 * Выбор обработчиков узлов выполняется автоматически в методе `self.visit(node)`
 * Названия функций их сигнатура уже определены, требуется лишь переопределение
@@ -537,7 +540,10 @@ class DumpVisitor(NodeVisitor):
 > If no visitor function exists for a node (return value `None`) the `generic_visit` visitor is used instead.
 
 Таким образом, после рассмотрения разных методов обхода дерева был сделан вывод, что эта задача в Питоне
-довольно элегантно и объектно-ориентировано в модуле `ast`.
+довольно элегантно и объектно-ориентировано решена в модуле `ast`. При написании трансляторов для других
+предметно-ориентированных языков следует организовать объектно-ориентированную модель абстрактного синтаксического 
+дерева и выполнять его обход, используя шаблон проектирования "посетитель".
+
 
 ## Использование GCC для задачи JIT-компиляции
 
@@ -599,9 +605,237 @@ g++ -shared object.o -o lib.dll
 интерфейса. Теоретически, даже на практике в рамках этой задачи, возможно заменить `g++ -O2` на `clang -O2` без
 *явных внешних* изменений.
 
+## Работа с DLL в Python
+
+Динамически подключаемая библиотека (DDL) - программный модуль, состоящий из набора функций. Основное отличие от .EXE
+файлов в том, что функции в DLL можно запускать по одной, в то время как в .EXE файлах все функции запускаются вместе.
+Формат DLL присущ только ОС Windows, в Unix системах применяются файлы с расширением .so, что не меняет их роли.
+
+В этом проекте файлы с расширением `.dll` получаются на выходе компиляции утилитой `g++` и должны подключаться к 
+среде выполнения Питона для вызова функций.
+
+По работе с DLL в языке Python есть хорошая [статья на Хабре](https://habr.com/ru/post/499152/). Опишем лишь 
+особенности с DLL, напрямую связанные с проектом.
+
+### Подключение
+
+Для подключения динамической библиотеки используется пакет `ctypes`
+
+```python
+from ctypes import LibraryLoader, CDLL
+
+dll = LibraryLoader(CDLL).LoadLibrary(dll_filename)
+```
+
+Функции лежат внутри объекта `dll`. Чтобы к ним обратиться, можно как `dll.func(arg, ...)`, 
+либо как `dll["func"](arg, ...)` (для случая динамического выбора имени функции или имени, не являющегося валидным
+названием Питона)
+
+### Имена функций и `extern "C"`
+
+С++ видоизменяет названия функций согласно их сигнатуре и аргументам. Например, функцию `int f(int x)` компилятор может
+преобразовать в `_Z1fi`. Подробнее о соглашении именования функции при компиляции можно узнать, например, 
+[здесь](https://en.wikipedia.org/wiki/Name_mangling)
+
+После переименования к функциям уже нельзя обратиться по первоначальному названию.
+Конечно, можно было бы написать свой алгоритм, который делает те же преобразования, что и компилятор. Но на самом деле,
+существует более простое решение.
+
+При добавлении к объявлению функции префикса `extend "C"` имена не будут кодироваться:
+
+```cpp
+extern "C" int sum(int x, int y) {
+    int res = (x + y);
+    return res;
+}
+```
+
+Так происходит, потому что мы явно указываем, что имена функций должны кодироваться по соглашению языка C, 
+то есть, никак.
+
+### Сигнатуры функций
+
+До этого момента подразумевалось, что вся задача транслятора - это преобразовать дерево в строку с текстом программы.
+Однако, для корректного запуска функций из .dll необходимо явно указать, какие значения каких типов принимаются на вход
+и какой тип возвращаемого значения. То есть, помимо итоговой строки нужно получить сигнатуры функций, которые 
+обрабатываются в дереве.
+
+Для этого в нескольких посетителях необходимо передать типы.
+* В посетителе аргументов функции:
+```python
+def visit_arg(self, node: arg) -> Tuple[str, str]:
+    return node.arg, self.visit(node.annotation)
+```
+* В посетителе функции:
+```python
+def visit_FunctionDef(self, node: FunctionDef) -> Tuple[str, dict]:
+    ret_type = self.visit(node.returns)
+    name = node.name
+    args, args_signature = [], []
+    for arg in node.args.args:
+        arg, arg_type = self.visit(arg)
+        args.append(f"{arg_type} {arg}")
+        args_signature.append(ctype_convert(arg_type))
+    args = ", ".join(args)
+    res = f"extern \"C\" {ret_type} {name}({args}) {{\n"
+    res += self.dump_body(node.body) + "}"
+    signature = {
+        "argtypes": args_signature,
+        "restype": ctype_convert(ret_type)
+    }
+    return res, signature
+```
+* В посетителе модуля:
+```python
+def visit_Module(self, node: Module) -> Tuple[str, dict]:
+    res, signatures = "", {}
+    for elem in node.body:
+        match elem:
+            case FunctionDef(name=name):
+                func_text, signature = self.visit(elem)
+                res += func_text + "\n"
+                signatures[name] = signature
+    return res, signatures
+```
+
+Использующаяся функция `ctype_convert` преобразует строковое представление типа Питона
+в соответствующий тип модуля ctypes.
+
+```python
+import ctypes
+
+def ctype_convert(type_str: str):
+    match type_str:
+        case "int":
+            return ctypes.c_int
+        case "double":
+            return ctypes.c_double
+        case "bool":
+            return ctypes.c_bool
+        case _:
+            raise Exception(f"unsupported type str {type_str}")
+```
+
+Расширение этой функции с добавлением поддержки новых типов не составит труда.
+
+В результате на выходе транслятора помимо текста программы, будет словарь вот такого вида:
+```python
+{
+  'sum': 
+  {
+    'argtypes': 
+      [
+        <class 'ctypes.c_long'>, 
+        <class 'ctypes.c_long'>
+      ], 
+    'restype': <class 'ctypes.c_long'>
+  }
+}
+```
+Магическим образом `c_int` превратился в `c_long`. Впрочем, в модуле c_types даже есть комментарий на этом месте:
+> if int and long have the same size, make c_int an alias for c_long
+
+Примем за истину.
+
 ## Алгоритм JIT-компиляции программ на Python
 
-## Работа с DLL в Python
+Итак, описав большое количество "низкоуровневых" слабо связанных модулей системы, можно приступать к приятной сборке
+конструктора.
+
+### Процесс компиляции
+
+На вход функции компиляции поступает объект функции, но для трансляции нужен именно её текст. Эта проблема решается
+использованием функции `getsource` из модуля `inspect`
+```python
+source = inspect.getsource(func)
+```
+
+Далее из текста получается абстрактное дерево с помощью `ast.parse`
+```python
+ast_object = ast.parse(source)
+```
+
+Функция трансляции абстрактного дерева синтаксиса в текст программы на C++ также записывает её во временный файл.
+Именно в ней запускается проход по дереву `DumpVisitor().visit(tree)`
+
+```python
+def dump_cpp_text(tree: ast.Module = None, filename: str = None) -> dict:
+    text, signatures = DumpVisitor().visit(tree)
+    with open(filename, "w", encoding="utf-8") as outfile:
+        outfile.write(text)
+    return signatures
+```
+
+Вызов утилиты `g++` происходит через интерфейс командной строки с использованием `subprocess.run()`
+```python
+cpp_filename = f"cache/{func.__name__}.cpp"
+signatures = dump.dump_cpp_text(tree=ast_object, filename=cpp_filename)
+o_filename = cpp_filename.replace(".cpp", ".o")
+subprocess.run(["g++", "-O2", "-c", cpp_filename, "-o", o_filename])
+dll_filename = o_filename.replace(".o", ".dll")
+subprocess.run(["g++", "-shared", "-o", dll_filename, o_filename])
+```
+
+И наконец, созданная библиотека dll загружается в объект Питона.
+
+```python
+dll = LibraryLoader(ctypes.CDLL).LoadLibrary(dll_filename)
+```
+
+Весь код функции `compile_dll` представлен ниже:
+
+```python
+def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
+    source = inspect.getsource(func)
+    ast_object = ast.parse(source)
+    
+    if not os.path.exists("cache"):
+        os.makedirs("cache")
+        
+    cpp_filename = f"cache/{func.__name__}.cpp"
+    signatures = dump.dump_cpp_text(tree=ast_object, filename=cpp_filename)
+    
+    o_filename = cpp_filename.replace(".cpp", ".o")
+    subprocess.run(["g++", "-O2", "-c", cpp_filename, "-o", o_filename])
+    
+    dll_filename = o_filename.replace(".o", ".dll")
+    subprocess.run(["g++", "-shared", "-o", dll_filename, o_filename])
+    os.remove(o_filename)
+    
+    dll = LibraryLoader(ctypes.CDLL).LoadLibrary(dll_filename)
+    return dll, signatures
+```
+
+Также в процессе JIT-компиляции происходит кеширование и удаление некоторых промежуточных файлов.
+
+### Аннотация `@jit`
+
+Используя "синтаксический сахар" Питона и его возможности функционального программирования было бы неплохо написать
+аннотацию вида:
+
+```python
+@jit
+def sum(x: int, y: int) -> int:
+    res: int = x + y
+    return res
+```
+
+Которая компилирует помеченную функцию и возвращает нам скомпилированный вариант. "Под капотом" будет происходить
+вызов этой функции из .dll файла.
+
+Алгоритм декоратора будет выглядеть примерно так:
+
+```python
+def jit(func: Callable) -> Callable:
+    exec_module, signatures = compile_dll(func)
+    name = func.__name__
+    jit_func = exec_module[name]
+    jit_func.argtypes = signatures[name]["argtypes"]
+    jit_func.restype = signatures[name]["restype"]
+    return jit_func
+```
+
+Стоит отметить, что именно такой интерфейс использует Numba (аннотация `@numba.jit`)
 
 ## Оценка скорости выполнения программ с JIT-компиляцией и без
 
@@ -626,6 +860,8 @@ https://ru.wikipedia.org/wiki/%D0%9B%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F_A
 https://habr.com/ru/company/huawei/blog/511854/
 
 https://habr.com/ru/company/numdes/blog/581374/
+
+https://habr.com/ru/post/499152/
 
 https://ru.wikipedia.org/wiki/%D0%94%D0%B8%D0%BD%D0%B0%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8_%D0%BF%D0%BE%D0%B4%D0%BA%D0%BB%D1%8E%D1%87%D0%B0%D0%B5%D0%BC%D0%B0%D1%8F_%D0%B1%D0%B8%D0%B1%D0%BB%D0%B8%D0%BE%D1%82%D0%B5%D0%BA%D0%B0
 

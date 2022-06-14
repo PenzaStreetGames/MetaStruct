@@ -5,7 +5,6 @@ from tree_to_code.dump_visitor import DumpVisitor
 
 
 def dump_cpp_text(tree: ast.Module = None, filename: str = None) -> dict:
-    # text, signatures = dump_module(tree)
     text, signatures = DumpVisitor().visit(tree)
     with open(filename, "w", encoding="utf-8") as outfile:
         outfile.write(text)

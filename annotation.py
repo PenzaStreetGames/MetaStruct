@@ -12,7 +12,7 @@ from ctypes import LibraryLoader
 def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
     source = inspect.getsource(func)
     ast_object = ast.parse(source)
-    print(ast.dump(ast_object, indent=4))
+    # print(ast.dump(ast_object, indent=4))
     if not os.path.exists("cache"):
         os.makedirs("cache")
     cpp_filename = f"cache/{func.__name__}.cpp"
@@ -21,7 +21,7 @@ def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
     subprocess.run(["g++", "-O2", "-c", cpp_filename, "-o", o_filename])
     # subprocess.run(["g++", "-c", cpp_filename, "-o", o_filename])
     dll_filename = o_filename.replace(".o", ".dll")
-    subprocess.run(["g++", "-shared", "-o", dll_filename, o_filename])
+    subprocess.run(["g++", "-shared", o_filename, "-o", dll_filename])
     os.remove(o_filename)
     dll = LibraryLoader(ctypes.CDLL).LoadLibrary(dll_filename)
     return dll, signatures
