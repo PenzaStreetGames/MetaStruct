@@ -87,6 +87,8 @@ class DumpVisitor(ast.NodeVisitor):
         match orelse := node.orelse:
             case If():
                 res += self.visit(orelse)
+            case []:
+                pass
             case _:
                 else_body = self.dump_body(orelse)
                 res += f"{{\n{else_body}}}\n"

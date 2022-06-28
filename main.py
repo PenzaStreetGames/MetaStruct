@@ -91,6 +91,7 @@ def sum(x: int, y: int) -> int:
     res: int = x + y
     return res
 
+
 jit_n_primary, numba_n_primary = get_jit_numba_realisations(py_n_primary)
 
 
