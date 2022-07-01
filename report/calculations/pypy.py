@@ -12,7 +12,6 @@ def pypy_sum(x: int, y: int) -> int:
 
 pypy_exec_time = repeat(lambda: pypy_sum(2, 2), repeat=10, number=1000000)
 print(pypy_exec_time)
-
 xs = range(1, 11)
 results["sum"] = [list(xs), pypy_exec_time]
 
