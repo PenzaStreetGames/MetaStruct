@@ -4,8 +4,8 @@ import inspect
 import os
 import subprocess
 
-# from tree_to_code import dump_visitor
-from tree_to_code import dump_dict
+from tree_to_code import dump_visitor
+# from tree_to_code import dump_dict # для PyPy
 
 from typing import Callable, Tuple
 from ctypes import LibraryLoader
@@ -18,7 +18,7 @@ def compile_dll(func: Callable) -> Tuple[ctypes.CDLL, dict]:
     if not os.path.exists("cache"):
         os.makedirs("cache")
     cpp_filename = f"cache/{func.__name__}.cpp"
-    signatures = dump_dict.dump_cpp_text(tree=ast_object, filename=cpp_filename)
+    signatures = dump_visitor.dump_cpp_text(tree=ast_object, filename=cpp_filename)
     o_filename = cpp_filename.replace(".cpp", ".o")
     subprocess.run(["g++", "-O2", "-c", cpp_filename, "-o", o_filename])
     # subprocess.run(["g++", "-c", cpp_filename, "-o", o_filename])
