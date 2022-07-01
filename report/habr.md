@@ -37,7 +37,7 @@
 
 ## Принцип работы
 
-![Архитектура](https://habrastorage.org/webt/5a/cw/ds/5acwdsahd2fnzpnctw7sch4dny0.png)
+![Архитектура](https://habrastorage.org/webt/ib/yb/-3/ibyb-3rdjj6gw9vr_c2lf4a8k60.png)
 
 На схеме выше показано, какие этапы проходит функция на Питоне, становясь скомпилированным модулем на С++:
 

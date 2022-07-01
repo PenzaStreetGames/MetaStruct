@@ -3,6 +3,13 @@ from typing import Tuple, List
 import ctypes
 
 
+def dump_cpp_text(tree: ast.Module = None, filename: str = None) -> dict:
+    text, signatures = dump_module(tree)
+    with open(filename, "w", encoding="utf-8") as outfile:
+        outfile.write(text)
+    return signatures
+
+
 def dump_module(module: ast.Module) -> Tuple[str, dict]:
     res = ""
     signatures = {}
